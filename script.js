@@ -1050,6 +1050,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   /* ── Boot ── */
+  // Mobile UX: hide the sidebar by default on small screens
+  try {
+    if (window.innerWidth <= 880) document.getElementById('sidebar').classList.add('hide');
+  } catch (e) { /* ignore during auth screens */ }
+  window.addEventListener('resize', () => {
+    try {
+      if (window.innerWidth > 880) document.getElementById('sidebar').classList.remove('hide');
+    } catch (e) {}
+  });
+
   if (token && currentUser) {
     enterApp();
   } else {
