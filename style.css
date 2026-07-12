@@ -701,6 +701,9 @@ input,textarea{font-family:inherit;}
   .messages{padding:12px 12px;}
   .chat-header{padding:10px 14px;}
   .composer{padding:10px 12px 12px;}
+  /* Keep composer visible and avoid being hidden by mobile UI */
+  .composer{position:sticky;bottom:0;z-index:30;background:linear-gradient(180deg,transparent,rgba(255,255,255,0.02));}
+  .messages{padding-bottom:110px;} /* allow room for composer */
   .composer-box{padding:6px 8px;border-radius:18px;}
   .composer-box input{font-size:15px;}
   .send-btn{width:40px;height:40px}

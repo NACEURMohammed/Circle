@@ -598,6 +598,8 @@ async function sendMessage() {
     recipientId: conv.type === 'group' ? null : conv.contact,
     senderId: currentUser?.id
   });
+  // quick confirmation for mobile/outgoing
+  try { showToast('Message sent'); } catch (e) {}
 }
 
 /* ─────────────────────────────────────
