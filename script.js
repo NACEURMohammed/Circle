@@ -25,6 +25,16 @@ socket.on('connect', () => {
   }
 });
 
+// Ensure we re-join rooms on reconnect
+socket.on('connect', () => {
+  try {
+    if (currentUser?.id) socket.emit('register-user', currentUser.id);
+    conversations.forEach((c) => {
+      try { socket.emit('join-room', c.id); } catch (e) {}
+    });
+  } catch (e) {}
+});
+
 /* ─────────────────────────────────────
    HELPERS
 ───────────────────────────────────── */
@@ -137,8 +147,26 @@ async function doRegister() {
     const data = await res.json();
     if (!res.ok) { showAuthError('registerCard', data.message || 'Registration failed'); return; }
 
-    document.getElementById('verifyMsg').textContent =
-      `We sent a verification link to ${email}. Click it to activate your account.`;
+    // If email failed to send, inform the user with actionable guidance
+    if (data.emailSent === false) {
+      document.getElementById('verifyMsg').textContent =
+        `Account created, but we couldn't send a verification email. Check server email settings or contact support.`;
+      if (data.previewUrl) {
+        const p = document.createElement('div');
+        p.style.marginTop = '10px';
+        p.innerHTML = `Preview email: <a href="${data.previewUrl}" target="_blank">Open</a>`;
+        document.getElementById('registerCard').appendChild(p);
+      }
+    } else {
+      document.getElementById('verifyMsg').textContent =
+        `We sent a verification link to ${email}. Click it to activate your account.`;
+      if (data.previewUrl) {
+        const p = document.createElement('div');
+        p.style.marginTop = '10px';
+        p.innerHTML = `Preview email (dev): <a href="${data.previewUrl}" target="_blank">Open</a>`;
+        document.getElementById('registerCard').appendChild(p);
+      }
+    }
     showCard('verifyCard');
   } catch (e) {
     showAuthError('registerCard', 'Network error. Is the server running?');
@@ -904,8 +932,23 @@ socket.on('new-message', (msg) => {
   else if (msg.senderId === currentUser.id) convId = `d:${msg.receiverId}`;
   else convId = `d:${msg.senderId}`;
 
-  const conv = conversations.find((c) => c.id === convId);
-  if (!conv) return;
+  let conv = conversations.find((c) => c.id === convId);
+
+  // If conversation doesn't exist (e.g., new direct message), create a lightweight conv
+  if (!conv) {
+    const sender = contactById[msg.senderId] || null;
+    conv = {
+      id: convId,
+      type: msg.groupId ? 'group' : 'direct',
+      name: sender ? sender.name : (msg.groupName || (msg.senderId || 'Unknown')),
+      contact: msg.senderId || null,
+      members: msg.groupId ? (msg.members || []) : undefined,
+      messages: []
+    };
+    conversations.unshift(conv);
+    // join room for new conversation
+    try { socket.emit('join-room', conv.id); } catch (e) {}
+  }
 
   // Avoid duplicates (we already pushed our own messages locally)
   if (msg.senderId === currentUser.id) return;

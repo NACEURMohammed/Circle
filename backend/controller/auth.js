@@ -21,7 +21,7 @@ const transporter = nodemailer.createTransport({
 
 async function sendVerificationEmail(email, name, token) {
   const link = `${BASE_URL}/api/auth/verify-email/${token}`;
-  await transporter.sendMail({
+  const mailOptions = {
     from: process.env.EMAIL_FROM || 'Cercle <no-reply@cercle.com>',
     to: email,
     subject: 'Verify your Cercle account',
@@ -43,7 +43,30 @@ async function sendVerificationEmail(email, name, token) {
         </p>
       </div>
     `
-  });
+  };
+
+  // Try sending with configured transporter first
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    // If using Ethereal the preview URL is useful
+    const preview = info && info.messageId && nodemailer.getTestMessageUrl ? nodemailer.getTestMessageUrl(info) : null;
+    return { success: true, previewUrl: preview };
+  } catch (err) {
+    // Fallback to Ethereal for development/testing so user can view the message
+    try {
+      const testAccount = await nodemailer.createTestAccount();
+      const testTransport = nodemailer.createTransport({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        auth: { user: testAccount.user, pass: testAccount.pass }
+      });
+      const info2 = await testTransport.sendMail(mailOptions);
+      const preview = nodemailer.getTestMessageUrl(info2);
+      return { success: true, previewUrl: preview };
+    } catch (err2) {
+      throw err2 || err;
+    }
+  }
 }
 
 /* ─── JWT helpers ─── */
@@ -94,15 +117,24 @@ exports.registerStrategies = async (req, res) => {
 
     await newUser.save();
 
-    // Send verification email
+    // Send verification email and return status/preview info
+    let emailSent = true;
+    let emailError = null;
+    let previewUrl = null;
     try {
-      await sendVerificationEmail(email, name, verifyToken);
+      const result = await sendVerificationEmail(email, name, verifyToken);
+      if (result && result.previewUrl) previewUrl = result.previewUrl;
     } catch (emailErr) {
-      console.error('Email send failed:', emailErr.message);
+      emailSent = false;
+      emailError = emailErr.message || String(emailErr);
+      console.error('Email send failed:', emailError);
     }
 
     return res.status(201).json({
-      message: 'Registration successful! Check your email to verify your account.'
+      message: 'Registration successful! Check your email to verify your account.',
+      emailSent,
+      emailError,
+      previewUrl
     });
   } catch (err) {
     console.error('Register error:', err);
