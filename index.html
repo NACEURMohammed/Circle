@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cercle — Messaging</title>
+<meta name="description" content="Cercle — Beautiful real-time messaging. Connect with people in direct conversations and circles.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     AUTH OVERLAY
+═══════════════════════════════════════ -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-bg"></div>
+
+  <!-- Login Card -->
+  <div class="auth-card" id="loginCard">
+    <div class="auth-brand">
+      <div class="brand-mark"></div>
+      <span class="auth-brand-name">Cercle</span>
+    </div>
+    <h1 class="auth-title">Welcome back</h1>
+    <p class="auth-sub">Sign in to your conversations</p>
+
+    <div class="auth-error" id="loginError"></div>
+
+    <div class="auth-form" id="loginForm">
+      <div class="field-group">
+        <label class="field-label" for="loginEmail">Email</label>
+        <input class="field-input" type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="loginPassword">Password</label>
+        <div class="password-wrap">
+          <input class="field-input" type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+          <button class="eye-btn" type="button" id="loginEye" title="Toggle password">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button class="auth-btn" id="loginBtn" type="button">Sign in</button>
+    </div>
+
+    <p class="auth-switch">Don't have an account? <button class="auth-link" id="toRegister">Create one</button></p>
+  </div>
+
+  <!-- Register Card -->
+  <div class="auth-card hidden" id="registerCard">
+    <div class="auth-brand">
+      <div class="brand-mark"></div>
+      <span class="auth-brand-name">Cercle</span>
+    </div>
+    <h1 class="auth-title">Create account</h1>
+    <p class="auth-sub">Start your conversations today</p>
+
+    <div class="auth-error" id="registerError"></div>
+
+    <div class="auth-form" id="registerForm">
+      <div class="field-group">
+        <label class="field-label" for="regName">Full name</label>
+        <input class="field-input" type="text" id="regName" placeholder="Your name" autocomplete="name">
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="regEmail">Email</label>
+        <input class="field-input" type="email" id="regEmail" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="regPassword">Password</label>
+        <div class="password-wrap">
+          <input class="field-input" type="password" id="regPassword" placeholder="At least 6 characters" autocomplete="new-password">
+          <button class="eye-btn" type="button" id="regEye" title="Toggle password">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button class="auth-btn" id="registerBtn" type="button">Create account</button>
+    </div>
+
+    <p class="auth-switch">Already have an account? <button class="auth-link" id="toLogin">Sign in</button></p>
+  </div>
+
+  <!-- Verify Pending Card -->
+  <div class="auth-card hidden" id="verifyCard">
+    <div class="auth-brand">
+      <div class="brand-mark"></div>
+      <span class="auth-brand-name">Cercle</span>
+    </div>
+    <div class="verify-icon">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+    </div>
+    <h1 class="auth-title">Check your email</h1>
+    <p class="auth-sub" id="verifyMsg">We sent a verification link to your email. Click it to activate your account.</p>
+    <button class="auth-btn outline" id="backToLogin" type="button">Back to login</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MAIN APP
+═══════════════════════════════════════ -->
+<div class="app" id="appRoot" style="display:none;">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div>
+        <div class="brand-name">Cercle</div>
+        <div class="brand-tag">conversations &amp; circles</div>
+      </div>
+    </div>
+
+    <div class="search-wrap">
+      <div class="search-box">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search conversations" id="searchInput">
+      </div>
+    </div>
+
+    <div class="tabs" id="tabs">
+      <button class="tab active" data-filter="all">All</button>
+      <button class="tab" data-filter="direct">Direct</button>
+      <button class="tab" data-filter="group">Circles</button>
+    </div>
+
+    <div class="sidebar-actions">
+      <button class="new-group-btn" id="openModalBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New circle
+      </button>
+      <button class="add-contact-btn" id="openAddContactBtn" title="Add contact">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+      </button>
+    </div>
+
+    <div class="contacts-panel">
+      <div class="contacts-panel-head">
+        <span class="contacts-title">Contacts</span>
+        <button class="contacts-add-btn" id="openContactsAddBtn" type="button">+ Add</button>
+      </div>
+      <div class="contacts-list" id="contactsList"></div>
+    </div>
+
+    <div class="conv-list" id="convList"></div>
+
+    <div class="me-row" id="meRow">
+      <div class="avatar" id="meAvatar" style="background:linear-gradient(135deg,#C6427E,#9B2F62);">Y</div>
+      <div>
+        <div class="me-name" id="meName">You</div>
+        <div class="me-status">Active now</div>
+      </div>
+      <button class="gear" id="logoutBtn" title="Logout">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- CHAT -->
+  <main class="chat" id="chatMain">
+    <!-- Empty state shown when no conv selected -->
+    <div class="empty-chat" id="emptyChat">
+      <div class="brand-mark" style="width:52px;height:52px;opacity:.25;"></div>
+      <div style="font-size:15px;font-weight:600;color:var(--slate);">Select a conversation</div>
+      <div style="font-size:12.5px;color:var(--slate-light);">or add a contact to get started</div>
+    </div>
+
+    <div id="chatContent" style="display:none;flex-direction:column;height:100%;">
+      <div class="chat-header" id="chatHeader"></div>
+      <div class="messages" id="messages"></div>
+      <div class="composer">
+        <div class="composer-box">
+          <button class="icon-btn attach-btn" id="attachBtn" title="Attach file" style="width:30px;height:30px;flex-shrink:0;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          </button>
+          <input type="file" id="fileInput" style="display:none;" accept="*/*">
+          <input type="text" placeholder="Write a message…" id="msgInput">
+        </div>
+        <button class="send-btn" id="sendBtn" title="Send">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- INFO PANEL -->
+  <aside class="info-panel" id="infoPanel">
+    <div class="info-inner" id="infoInner"></div>
+  </aside>
+</div>
+
+<!-- NEW CIRCLE MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Start a new circle</h2>
+      <p>Pick two or more people. Watch them gather.</p>
+    </div>
+    <div class="orbit-preview" id="orbitPreview">
+      <span class="orbit-empty">— select members below —</span>
+    </div>
+    <div class="modal-field">
+      <label>Circle name</label>
+      <input type="text" id="groupNameInput" placeholder="e.g. Weekend Trip, Study Group…">
+      <div class="swatches" id="swatches"></div>
+    </div>
+    <div class="contact-search">
+      <div class="search-box" style="background:var(--paper-dim);border:1px solid var(--line);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--slate)" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search contacts" id="contactSearch" style="color:var(--ink);">
+      </div>
+    </div>
+    <div class="contact-list" id="contactList"></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="cancelModalBtn">Cancel</button>
+      <button class="btn btn-primary" id="createGroupBtn" disabled>Create circle</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD CONTACT MODAL -->
+<div class="modal-overlay" id="addContactOverlay">
+  <div class="modal" style="max-height:500px;">
+    <div class="modal-head">
+      <h2>Add a contact</h2>
+      <p>Search by name or email address</p>
+    </div>
+    <div class="contact-search" style="padding:8px 24px;">
+      <div class="search-box" style="background:var(--paper-dim);border:1px solid var(--line);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--slate)" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Name or email…" id="addContactSearch" style="color:var(--ink);">
+      </div>
+    </div>
+    <div class="contact-list" id="addContactResults" style="max-height:240px;padding:0 14px 6px;overflow-y:auto;">
+      <div style="padding:20px;text-align:center;color:var(--slate-light);font-size:12.5px;">Type to search users</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="cancelAddContact">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- FILE PREVIEW MODAL -->
+<div class="modal-overlay" id="filePreviewOverlay">
+  <div class="modal" style="background:#1a1c2e;max-width:80vw;max-height:85vh;overflow:auto;">
+    <div style="padding:16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.1);">
+      <span id="previewFileName" style="color:#fff;font-weight:600;font-size:14px;"></span>
+      <button class="btn btn-ghost" id="closePreview" style="color:#9A9DB5;">✕ Close</button>
+    </div>
+    <div id="previewContent" style="padding:20px;display:flex;justify-content:center;"></div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

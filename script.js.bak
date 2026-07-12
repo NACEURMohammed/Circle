@@ -1,0 +1,415 @@
+/* ---------------- DATA ---------------- */
+const palette = ['#C6427E','#9B2F62','#E8B647','#4A7C8C','#6B5CA5','#3F8F5F'];
+
+function gradFor(seed){
+  const i = seed % palette.length;
+  const j = (seed+2) % palette.length;
+  return `linear-gradient(135deg, ${palette[i]}, ${palette[j]})`;
+}
+
+const contacts = [
+  {id:'c1', name:'Lina Haddad', initials:'LH', online:true},
+  {id:'c2', name:'Yassine Meziane', initials:'YM', online:false},
+  {id:'c3', name:'Sara Belkacem', initials:'SB', online:true},
+  {id:'c4', name:'Omar Toumi', initials:'OT', online:false},
+  {id:'c5', name:'Nadia Cherif', initials:'NC', online:true},
+  {id:'c6', name:'Karim Aksas', initials:'KA', online:false},
+  {id:'c7', name:'Farah Bouzid', initials:'FB', online:true},
+  {id:'c8', name:'Rachid Amrani', initials:'RA', online:false},
+];
+const contactById = Object.fromEntries(contacts.map(c=>[c.id,c]));
+
+let conversations = [
+  {
+    id:'g1', type:'group', name:'Design Sprint', color:0,
+    members:['c2','c3','c4'],
+    time:'2:14 PM', unread:0,
+    messages:[
+      {from:'c2', text:'Morning! Ready for today\\'s review?', time:'9:02 AM'},
+      {from:'me', text:'Yep, slides are almost done.', time:'9:05 AM'},
+      {from:'c3', text:'I added the new flow diagrams to the folder.', time:'9:20 AM'},
+      {from:'c4', text:'Nice, checking now.', time:'9:22 AM'},
+      {from:'c4', text:'This looks great — let\\'s meet at 3 to walk through it together.', time:'2:14 PM'},
+    ]
+  },
+  {
+    id:'d1', type:'direct', name:'Lina Haddad', contact:'c1',
+    time:'1:47 PM', unread:2,
+    messages:[
+      {from:'c1', text:'Hey! Did you get a chance to look at the proposal?', time:'1:40 PM'},
+      {from:'c1', text:'Sent the report, check it when you can', time:'1:47 PM'},
+    ]
+  },
+  {
+    id:'g2', type:'group', name:'ESI Robotics Club', color:2,
+    members:['c6','c7','c8','c1'],
+    time:'11:30 AM', unread:5,
+    messages:[
+      {from:'c6', text:'Team, the competition date moved to next month.', time:'10:58 AM'},
+      {from:'c1', text:'Good, more time to finish the arm mechanism.', time:'11:05 AM'},
+      {from:'c8', text:'I\\'ll rerun the torque calculations tonight.', time:'11:12 AM'},
+      {from:'c7', text:'Uploaded the latest slides to the shared drive.', time:'11:30 AM'},
+    ]
+  },
+  {
+    id:'d2', type:'direct', name:'Nadia Cherif', contact:'c5',
+    time:'Yesterday', unread:0,
+    messages:[
+      {from:'me', text:'Are we still on for tomorrow?', time:'6:02 PM'},
+      {from:'c5', text:'Sounds good, see you tomorrow', time:'6:10 PM'},
+    ]
+  },
+  {
+    id:'d3', type:'direct', name:'Karim Aksas', contact:'c6',
+    time:'Yesterday', unread:0, typing:true,
+    messages:[
+      {from:'c6', text:'Quick question about the wiring diagram', time:'5:12 PM'},
+      {from:'me', text:'Sure, go ahead', time:'5:15 PM'},
+    ]
+  },
+];
+
+let activeId = 'g1';
+let currentFilter = 'all';
+let infoOpen = false;
+let selectedMembers = new Set();
+let selectedColor = 0;
+
+/* ---------------- HELPERS ---------------- */
+function initialsOf(name){
+  return name.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase();
+}
+
+function memberNames(conv){
+  return (conv.members || []).map((id) => contactById[id]?.name?.split(' ')[0] || 'Member');
+}
+
+function renderAvatar(conv){
+  if(conv.type==='direct'){
+    const c = contactById[conv.contact];
+    if (!c) return `<div class="avatar" style="background:${gradFor(1)}">Y</div>`;
+    const initials = (c.name || 'You').split(' ').map((part) => part[0]).slice(0,2).join('').toUpperCase();
+    return `<div class="avatar" style="background:${gradFor(conv.contact.charCodeAt(1))}">${initials}${c.online?'<span class="presence-dot"></span>':''}</div>`;
+  }
+  return renderCluster(conv.members || [], conv.color || 0);
+}
+
+function renderCluster(memberIds, colorSeed){
+  const positions = [
+    {t:0,l:8,s:24},{t:16,l:0,s:20},{t:16,l:24,s:20},
+  ];
+  const ids = memberIds.slice(0,3);
+  let nodes = '';
+  ids.forEach((id,i)=>{
+    const c = contactById[id];
+    const p = positions[i] || positions[0];
+    nodes += `<div class="node" style="top:${p.t}px;left:${p.l}px;width:${p.s}px;height:${p.s}px;font-size:${p.s*0.4}px;background:${gradFor(id.charCodeAt(1)+i+colorSeed)}">${c.initials.slice(0,1)}</div>`;
+  });
+  return `<div class="cluster">${nodes}</div>`;
+}
+
+/* ---------------- RENDER: CONV LIST ---------------- */
+function renderConvList(){
+  const list = document.getElementById('convList');
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  let items = conversations.filter((c) => {
+    if(currentFilter!=='all' && c.type!==currentFilter) return false;
+    if(q && !c.name.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  list.innerHTML = items.map((conv) => {
+    const last = conv.messages?.[conv.messages.length - 1];
+    const preview = last ? (last.from==='me' ? 'You: '+last.text : last.text) : '';
+    return `
+    <button class="conv-item ${conv.id===activeId?'active':''}" data-id="${conv.id}">
+      ${renderAvatar(conv)}
+      <div class="conv-body">
+        <div class="conv-top">
+          <span class="conv-name">${conv.name}</span>
+          <span class="conv-time">${conv.time}</span>
+        </div>
+        <div class="conv-preview">
+          <span>${preview}</span>
+          ${conv.unread ? `<span class="unread-badge">${conv.unread}</span>` : ''}
+        </div>
+      </div>
+    </button>`;
+  }).join('') || `<div style="padding:30px 10px;text-align:center;color:var(--slate-light);font-size:13px;">No matches</div>`;
+
+  list.querySelectorAll('.conv-item').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      activeId = el.dataset.id;
+      const conv = conversations.find(c=>c.id===activeId);
+      conv.unread = 0;
+      renderAll();
+      if(window.innerWidth <= 880){
+        document.getElementById('sidebar').classList.add('hide');
+      }
+    });
+  });
+}
+
+/* ---------------- RENDER: CHAT HEADER ---------------- */
+function renderHeader(conv){
+  const header = document.getElementById('chatHeader');
+  const sub = conv.type==='group'
+    ? `${(conv.members||[]).length+1} members · ${memberNames(conv).slice(0,2).join(', ')}${(conv.members||[]).length>2?' & others':''}`
+    : (contactById[conv.contact]?.online ? 'Active now' : 'Offline');
+
+  header.innerHTML = `
+    <button class="icon-btn back-btn" id="mobileBack" title="Back">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    ${renderAvatar(conv)}
+    <div class="title-wrap">
+      <div class="conv-name">${conv.name}</div>
+      <div class="conv-sub">${sub}</div>
+    </div>
+    <button class="icon-btn" title="Search in conversation">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </button>
+    <button class="icon-btn ${infoOpen?'on':''}" id="infoToggle" title="Conversation info">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+    </button>
+  `;
+  document.getElementById('infoToggle').addEventListener('click', ()=>{
+    infoOpen = !infoOpen;
+    renderAll();
+  });
+  const mb = document.getElementById('mobileBack');
+  if(mb) mb.addEventListener('click', ()=> document.getElementById('sidebar').classList.remove('hide'));
+}
+
+/* ---------------- RENDER: MESSAGES ---------------- */
+function renderMessages(conv){
+  const wrap = document.getElementById('messages');
+  let html = `<div class="day-divider">Today</div>`;
+  (conv.messages || []).forEach((m,i)=>{
+    const mine = m.from==='me';
+    const prevSame = i>0 && conv.messages[i-1].from===m.from;
+    const sender = mine ? null : contactById[m.from];
+    html += `
+    <div class="msg-row ${mine?'mine':''} ${prevSame?'grouped':''}">
+      ${!mine ? `<div class="avatar" style="background:${gradFor(m.from.charCodeAt(1))};width:28px;height:28px;font-size:11px;">${sender.initials}</div>` : ''}
+      <div class="bubble-col">
+        ${(!mine && !prevSame && conv.type==='group') ? `<div class="msg-sender">${sender.name}</div>` : ''}
+        <div class="bubble">${m.text}</div>
+        <div class="msg-meta">${m.time}</div>
+      </div>
+    </div>`;
+  });
+  if(conv.typing){
+    html += `<div class="typing-row"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+  }
+  wrap.innerHTML = html;
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+/* ---------------- RENDER: INFO PANEL ---------------- */
+function renderInfoPanel(conv){
+  const panel = document.getElementById('infoPanel');
+  const inner = document.getElementById('infoInner');
+  panel.classList.toggle('open', infoOpen);
+  if(!infoOpen) return;
+
+  if(conv.type==='group'){
+    inner.innerHTML = `
+      <div class="info-cluster-wrap">${renderCluster(conv.members, conv.color)}</div>
+      <div class="info-title">${conv.name}</div>
+      <div class="info-sub">${conv.members.length+1} members</div>
+      <div class="info-section-label">Members</div>
+      <div class="member-row">
+        <div class="avatar" style="width:34px;height:34px;font-size:12px;background:linear-gradient(135deg,#C6427E,#9B2F62);">YM</div>
+        <div><div class="member-name">You</div><div class="member-role">Member</div></div>
+      </div>
+      ${conv.members.map(id=>{
+        const c = contactById[id];
+        return `<div class="member-row">
+          <div class="avatar" style="width:34px;height:34px;font-size:12px;background:${gradFor(id.charCodeAt(1))}">${c.initials}</div>
+          <div><div class="member-name">${c.name}</div><div class="member-role">${c.online?'Online':'Offline'}</div></div>
+        </div>`;
+      }).join('')}
+      <button class="add-member-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add member
+      </button>
+      <div class="info-section-label">Shared files</div>
+      <div style="font-size:12.5px;color:var(--slate);">No files shared yet.</div>
+    `;
+  } else {
+    const c = contactById[conv.contact];
+    inner.innerHTML = `
+      <div class="info-cluster-wrap"><div class="avatar" style="width:72px;height:72px;font-size:24px;background:${gradFor(conv.contact.charCodeAt(1))}">${c.initials}</div></div>
+      <div class="info-title">${c.name}</div>
+      <div class="info-sub">${c.online?'Active now':'Offline'}</div>
+      <div class="info-section-label">About</div>
+      <div style="font-size:12.5px;color:var(--slate);line-height:1.5;">No shared circles yet with ${c.name.split(' ')[0]}.</div>
+    `;
+  }
+}
+
+/* ---------------- MASTER RENDER ---------------- */
+function renderAll(){
+  const conv = conversations.find((c) => c.id === activeId);
+  renderConvList();
+  if(conv){
+    renderHeader(conv);
+    renderMessages(conv);
+    renderInfoPanel(conv);
+  }
+}
+
+/* ---------------- EVENTS ---------------- */
+document.getElementById('searchInput').addEventListener('input', renderConvList);
+
+document.getElementById('tabs').addEventListener('click', (e)=>{
+  const tab = e.target.closest('.tab');
+  if(!tab) return;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  tab.classList.add('active');
+  currentFilter = tab.dataset.filter;
+  renderConvList();
+});
+
+async function sendMessage(){
+  const input = document.getElementById('msgInput');
+  const text = input.value.trim();
+  if(!text) return;
+  const conv = conversations.find((c) => c.id === activeId);
+  if (!conv) return;
+
+  if (conv.type === 'group') {
+    await fetch('/api/messages/group-messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ senderId: currentUser.id, groupId: conv.id.replace('g:', ''), content: text })
+    });
+  } else {
+    await fetch('/api/messages/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ senderId: currentUser.id, receiverId: conv.contact, content: text })
+    });
+  }
+
+  const now = new Date();
+  const time = now.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+  conv.messages.push({ from: 'me', text, time });
+  conv.time = time;
+  input.value = '';
+  renderAll();
+}
+document.getElementById('sendBtn').addEventListener('click', sendMessage);
+document.getElementById('msgInput').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter') sendMessage();
+});
+document.getElementById('backBtn').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.remove('hide');
+});
+
+/* ---------------- MODAL: NEW GROUP ---------------- */
+const modalOverlay = document.getElementById('modalOverlay');
+document.getElementById('openModalBtn').addEventListener('click', openModal);
+document.getElementById('cancelModalBtn').addEventListener('click', closeModal);
+modalOverlay.addEventListener('click', (e)=>{ if(e.target===modalOverlay) closeModal(); });
+
+function openModal(){
+  selectedMembers = new Set();
+  selectedColor = 0;
+  document.getElementById('groupNameInput').value = '';
+  document.getElementById('contactSearch').value = '';
+  renderSwatches();
+  renderContactList();
+  renderOrbitPreview();
+  updateCreateBtn();
+  modalOverlay.classList.add('show');
+}
+function closeModal(){ modalOverlay.classList.remove('show'); }
+
+function renderSwatches(){
+  const wrap = document.getElementById('swatches');
+  wrap.innerHTML = palette.map((c,i)=>`<button class="swatch ${i===selectedColor?'selected':''}" data-i="${i}" style="background:${c}"></button>`).join('');
+  wrap.querySelectorAll('.swatch').forEach(el=>{
+    el.addEventListener('click', ()=>{ selectedColor = +el.dataset.i; renderSwatches(); renderOrbitPreview(); });
+  });
+}
+
+function renderContactList(){
+  const wrap = document.getElementById('contactList');
+  const q = document.getElementById('contactSearch').value.trim().toLowerCase();
+  const items = contacts.filter(c=>c.name.toLowerCase().includes(q));
+  wrap.innerHTML = items.map(c=>`
+    <button class="contact-row" data-id="${c.id}">
+      <div class="avatar" style="width:36px;height:36px;font-size:12.5px;background:${gradFor(c.id.charCodeAt(1))}">${c.initials}${c.online?'<span class="presence-dot" style="border-color:var(--white)"></span>':''}</div>
+      <span class="contact-name">${c.name}</span>
+      <span class="checkbox ${selectedMembers.has(c.id)?'checked':''}">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+      </span>
+    </button>
+  `).join('') || `<div style="padding:16px;text-align:center;color:var(--slate-light);font-size:12.5px;">No contacts found</div>`;
+
+  wrap.querySelectorAll('.contact-row').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const id = el.dataset.id;
+      if(selectedMembers.has(id)) selectedMembers.delete(id); else selectedMembers.add(id);
+      renderContactList();
+      renderOrbitPreview();
+      updateCreateBtn();
+    });
+  });
+}
+document.getElementById('contactSearch').addEventListener('input', renderContactList);
+document.getElementById('groupNameInput').addEventListener('input', updateCreateBtn);
+
+function renderOrbitPreview(){
+  const wrap = document.getElementById('orbitPreview');
+  const ids = Array.from(selectedMembers);
+  if(ids.length===0){
+    wrap.innerHTML = `<span class="orbit-empty">— select members below —</span>`;
+    return;
+  }
+  const radius = 34;
+  const center = 55;
+  let nodes = '';
+  ids.forEach((id,i)=>{
+    const angle = (i/ids.length) * Math.PI*2 - Math.PI/2;
+    const x = center + radius*Math.cos(angle) - 20;
+    const y = center + radius*Math.sin(angle) - 20;
+    const c = contactById[id];
+    nodes += `<div class="avatar" style="position:absolute;left:${x}px;top:${y}px;width:40px;height:40px;font-size:13px;background:${gradFor(id.charCodeAt(1)+selectedColor)};border:3px solid var(--paper);transition:all .25s ease;">${c.initials}</div>`;
+  });
+  wrap.innerHTML = `<div style="position:relative;width:110px;height:110px;">${nodes}</div>`;
+}
+
+function updateCreateBtn(){
+  const btn = document.getElementById('createGroupBtn');
+  const name = document.getElementById('groupNameInput').value.trim();
+  btn.disabled = !(name.length>0 && selectedMembers.size>=2);
+}
+
+document.getElementById('createGroupBtn').addEventListener('click', async () => {
+  const name = document.getElementById('groupNameInput').value.trim();
+  const members = Array.from(selectedMembers);
+  if (!name || members.length < 2) return;
+
+  const response = await fetch('/api/messages/groups', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, members: [currentUser.id, ...members] })
+  });
+  const data = await response.json();
+
+  const newConv = {
+    id: `g:${data.group.id}`, type:'group', name, color:selectedColor,
+    members: [currentUser.id, ...members],
+    time:'Now', unread:0,
+    messages:[{from:'me', text:`Created the circle "${name}"`, time:'Now'}]
+  };
+  conversations.unshift(newConv);
+  activeId = newConv.id;
+  closeModal();
+  renderAll();
+});
+
+/* ---------------- INIT ---------------- */
+bootstrap();
